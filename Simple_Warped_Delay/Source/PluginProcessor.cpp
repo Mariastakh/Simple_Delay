@@ -24,22 +24,30 @@ Simple_warped_delayAudioProcessor::Simple_warped_delayAudioProcessor()
                        )
 #endif
 {
-    // Tree stuff:
-    state = new AudioProcessorValueTreeState(*this, nullptr);
-    state->createAndAddParameter("PhasorFrequency", "PhasorFreq", "PhasorFreq", NormalisableRange<float>(0.0f, 200.0f, 1.0f), 1.0, nullptr, nullptr);
-    state->createAndAddParameter("PhasorDuration", "PhasorDur", "PhasorDur", NormalisableRange<float>(0.0f, 15000.0f, 1000.0f), 1.0, nullptr, nullptr);
-    
-    state->state = ValueTree("PhasorFrequency");
-    state->state = ValueTree("PhasorDuration");
-    
-    numSeconds = 0.5;
-    numSamples = numSeconds  *44100;
-    oldBuffer.resize(numSamples);
-    
-    for(int i = 0; i < numSamples; i++)
-    {
-        oldBuffer[i] = 0;
-    }
+	// Tree stuff:
+	state = new AudioProcessorValueTreeState(*this, nullptr);
+	state->createAndAddParameter("PhasorFrequency", "PhasorFreq", "PhasorFreq", NormalisableRange<float>(1.0f, 10.0f, 0.001f), 1.0, nullptr, nullptr);
+	state->createAndAddParameter("PhasorDuration", "PhasorDur", "PhasorDur", NormalisableRange<float>(5000.0f, 22050.0f, 1.0f), 5000.0, nullptr, nullptr); // doesnt like th 5000.0f
+	state->createAndAddParameter("setSampleDuration", "Samples", "Samples", NormalisableRange<float>(1000.0f, 80000.0f, 1.0f), 1000.0, nullptr, nullptr);
+	//state->createAndAddParameter("PhasorSetStart", "phasorStart", "phasorStart", NormalisableRange<float>(0.0f, 22000.0f, 1.0f), 0.0, nullptr, nullptr);
+
+
+	state->state = ValueTree("PhasorFrequency");
+	state->state = ValueTree("PhasorDuration");
+	state->state = ValueTree("setSampleDuration");
+	//state->state = ValueTree("PhasorSetStart");
+
+
+	numSeconds = 5.0; // need to be able to vary this. also the max Duration of the phasor will be determined by the storage buffer size
+	numSamples = numSeconds * 44100;
+	//desiredSamples = numSamples;
+	oldBuffer.resize(numSamples);
+
+	for (int i = 0; i < numSamples; i++)
+	{
+		oldBuffer[i] = 0;
+	}
+
 }
 
 Simple_warped_delayAudioProcessor::~Simple_warped_delayAudioProcessor()
@@ -147,56 +155,65 @@ bool Simple_warped_delayAudioProcessor::isBusesLayoutSupported (const BusesLayou
 
 void Simple_warped_delayAudioProcessor::processBlock (AudioBuffer<float>& buffer, MidiBuffer& midiMessages)
 {
-    ScopedNoDenormals noDenormals;
-    auto totalNumInputChannels  = getTotalNumInputChannels();
-    auto totalNumOutputChannels = getTotalNumOutputChannels();
+	ScopedNoDenormals noDenormals;
+	auto totalNumInputChannels = getTotalNumInputChannels();
+	auto totalNumOutputChannels = getTotalNumOutputChannels();
 
-    // Get incoming Daw samples from buffer:
-    auto* channelData0 = buffer.getReadPointer(0);
-    auto* channelData1 = buffer.getReadPointer(1);
-    
-    // Get write pointer to buffer:
-    auto* outputChannelData0 = buffer.getWritePointer(0);
-    auto* outputChannelData1 = buffer.getWritePointer(1);
-    
-    for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
-        buffer.clear (i, 0, buffer.getNumSamples());
-  
-    float phasorFreq = *state->getRawParameterValue("PhasorFrequency");
-    float phasorDuration = *state->getRawParameterValue("PhasorDuration");
-   
-    for(int sample = 0; sample < buffer.getNumSamples(); sample++)
-    {
-        int delayTime = osc1.phasor(phasorFreq, 0, phasorDuration);
-        //dry sig:
-        double originalLeft = buffer.getReadPointer(0)[sample];
-        double wetSig = buffer.getReadPointer(0)[sample];
-        // THE DELAY CODE:
-        double out = oldBuffer[delayTime];
-        oldBuffer[counter] = wetSig + (out * 0.5);
-        wetSig = out;
-        
-        counter++;
-        if(counter >= numSamples)
-        {
-            counter = 0;
-        }
-       
-        // OUTPUT:
-        *outputChannelData0 =  wetSig;
-        *outputChannelData1 =  wetSig;//buffer.getReadPointer(1)[sample];
-        
-        outputChannelData0++;
-        outputChannelData1++;
-        
-    }
+	// Get incoming Daw samples from buffer:
+	auto* channelData0 = buffer.getReadPointer(0);
+	auto* channelData1 = buffer.getReadPointer(1);
+
+	// Get write pointer to buffer:
+	auto* outputChannelData0 = buffer.getWritePointer(0);
+	auto* outputChannelData1 = buffer.getWritePointer(1);
+
+	for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
+		buffer.clear(i, 0, buffer.getNumSamples());
+
+	float phasorFreq = *state->getRawParameterValue("PhasorFrequency");
+	float phasorDuration = *state->getRawParameterValue("PhasorDuration");
+	float desiredSamples = *state->getRawParameterValue("setSampleDuration");
+	//float phasorStart = *state->getRawParameterValue("PhasorSetStart");
+	
+	for (int sample = 0; sample < buffer.getNumSamples(); sample++)
+	{
+		int delayTime = osc1.phasor(phasorFreq, 0, phasorDuration);
+		//int delayTime = osc1.phasor(phasorFreq, phasorStart, phasorDuration);
+		//dry sig:
+		double originalLeft = buffer.getReadPointer(0)[sample];
+		double wetSig = buffer.getReadPointer(0)[sample];
+		// THE DELAY CODE:
+	   // delayTime = delayTime%desiredSamples;
+
+		double out = oldBuffer[delayTime]; //
+
+		oldBuffer[counter] = wetSig + (out * 0.5);
+		//Logger::outputDebugString("hello");
+		//Logger::outputDebugString(std::to_string(counter));
+		wetSig = out;
+
+		counter++;
+		if (counter >= desiredSamples) //numSamples
+		{
+			counter = 0;
+		}
+
+		// OUTPUT:
+		*outputChannelData0 = wetSig;
+		*outputChannelData1 = wetSig;//buffer.getReadPointer(1)[sample];
+
+		outputChannelData0++;
+		outputChannelData1++;
+
+	}
+
 }
 
 //========
 AudioProcessorValueTreeState& Simple_warped_delayAudioProcessor::getState()
 {
-    // returns reference to state
-    return *state;
+	// returns reference to state
+	return *state;
 }
 
 //==============================================================================
