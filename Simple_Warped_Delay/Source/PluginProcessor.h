@@ -55,22 +55,21 @@ public:
     void getStateInformation (MemoryBlock& destData) override;
     void setStateInformation (const void* data, int sizeInBytes) override;
 
-    // Tree state:
-    AudioProcessorValueTreeState& getState();
-    
+	// Tree state:
+	AudioProcessorValueTreeState& getState();
+
 private:
     //==============================================================================
+	// Tree stuff:
+	ScopedPointer<AudioProcessorValueTreeState> state;
+
+	maxiOsc osc1, osc2, osc3;
+	vector<double> currentBuffer, oldBuffer;
+	maxiSample sample1, sample2;
+	int counter = 0;
+	int bufferIndex;
+	int numSamples;
+	float numSeconds;
+	float dlout;
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Simple_warped_delayAudioProcessor)
-    
-    // Tree stuff:
-    ScopedPointer<AudioProcessorValueTreeState> state;
-    
-    maxiOsc osc1, osc2, osc3;
-    vector<double> currentBuffer, oldBuffer;
-    maxiSample sample1, sample2;
-    int counter, bufferIndex;
-    int numSamples;
-    float numSeconds;
-    float dlout;
-    
 };
