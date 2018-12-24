@@ -69,7 +69,9 @@ private:
 	int counter = 0;
 	int bufferIndex;
 	int numSamples;
+	//int desiredSamples;
 	float numSeconds;
 	float dlout;
+	bool resetPhase = false;
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Simple_warped_delayAudioProcessor)
 };
