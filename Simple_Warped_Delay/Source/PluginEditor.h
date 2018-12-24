@@ -147,12 +147,10 @@ public:
     void resized() override;
 
 private:
+
 	//// Sliders:
 	ScopedPointer<Slider> phasorFreq;
 	ScopedPointer<AudioProcessorValueTreeState::SliderAttachment> phasorFreqValue;
-
-	//ScopedPointer<Slider> phasorStart;
-	//ScopedPointer<AudioProcessorValueTreeState::SliderAttachment> phasorStartValue;
 
 	ScopedPointer<Slider> phasorDur;
 	ScopedPointer<AudioProcessorValueTreeState::SliderAttachment> phasorDurationValue;
@@ -160,6 +158,8 @@ private:
 	ScopedPointer<Slider> setSamplesDial;
 	ScopedPointer<AudioProcessorValueTreeState::SliderAttachment> setSampleDuration;
 
+	ScopedPointer<Slider> switchSlider;
+	ScopedPointer<AudioProcessorValueTreeState::SliderAttachment> setSwitch;
 
 	ScopedPointer<Label> phasorFreqLabel;
 	ScopedPointer<Label> phasorDurationLabel;
